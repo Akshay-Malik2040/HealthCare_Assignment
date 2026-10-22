@@ -407,7 +407,177 @@ curl -X GET http://localhost:5001/api/auth/me \
   -H "Authorization: Bearer <your_jwt_token>"
 ```
 
-### 8. Standard Error Contract
+### 8. Patient Management APIs (Phase 3)
+
+All patient endpoints require a valid JWT `Bearer <token>` in the `Authorization` header. Multi-tenant isolation is enforced in SQL: users can only view, update, or delete patients they own.
+
+#### Patient Schema & Validation Rules:
+- `id`: Auto-generated integer primary key.
+- `user_id`: Integer foreign key referencing `users(id)` with `ON DELETE CASCADE` (deleting a user account cascades to all their patient records).
+- `name`: String, required, trimmed, non-empty, 1-100 characters.
+- `age`: Integer, required, non-negative, range 0 to 150.
+- `gender`: String, optional/nullable, max 50 characters (e.g. `male`, `female`, `other`, `prefer_not_to_say`).
+- `address`: String, optional/nullable, max 500 characters.
+- `phone`: String, optional/nullable, max 30 characters.
+- `created_at` / `updated_at`: Timestamps with time zone.
+
+---
+
+#### A. Create Patient
+- **Method**: `POST /api/patients/` (or `POST /api/patients`)
+- **Headers**:
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <token>`
+- **Request Body**:
+```json
+{
+  "name": "Rahul Sharma",
+  "age": 28,
+  "gender": "male",
+  "address": "Delhi, India",
+  "phone": "9876543210"
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "user_id": 1,
+    "name": "Rahul Sharma",
+    "age": 28,
+    "gender": "male",
+    "address": "Delhi, India",
+    "phone": "9876543210",
+    "created_at": "2026-10-22T12:50:00.000Z",
+    "updated_at": "2026-10-22T12:50:00.000Z"
+  }
+}
+```
+
+```bash
+curl -X POST http://localhost:5001/api/patients/ \
+  -H "Authorization: Bearer <your_jwt_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Rahul Sharma","age":28,"gender":"male","address":"Delhi","phone":"9876543210"}'
+```
+
+---
+
+#### B. List Patients
+- **Method**: `GET /api/patients/` (or `GET /api/patients`)
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "name": "Rahul Sharma",
+      "age": 28,
+      "gender": "male",
+      "address": "Delhi, India",
+      "phone": "9876543210",
+      "created_at": "2026-10-22T12:50:00.000Z",
+      "updated_at": "2026-10-22T12:50:00.000Z"
+    }
+  ]
+}
+```
+
+```bash
+curl -X GET http://localhost:5001/api/patients/ \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+---
+
+#### C. Retrieve a Patient by ID
+- **Method**: `GET /api/patients/:id/` (or `GET /api/patients/:id`)
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: `200 OK` (if owned by caller) or `404 Not Found` (if nonexistent or owned by another user)
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "user_id": 1,
+    "name": "Rahul Sharma",
+    "age": 28,
+    "gender": "male",
+    "address": "Delhi, India",
+    "phone": "9876543210",
+    "created_at": "2026-10-22T12:50:00.000Z",
+    "updated_at": "2026-10-22T12:50:00.000Z"
+  }
+}
+```
+
+```bash
+curl -X GET http://localhost:5001/api/patients/1/ \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+---
+
+#### D. Update a Patient by ID
+- **Method**: `PUT /api/patients/:id/` (or `PUT /api/patients/:id`)
+- **Headers**:
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <token>`
+- **Request Body**:
+```json
+{
+  "name": "Rahul Sharma",
+  "age": 29,
+  "gender": "male",
+  "address": "Mumbai, India",
+  "phone": "9876543210"
+}
+```
+- **Response**: `200 OK` (if owned by caller) or `404 Not Found` (if nonexistent or owned by another user)
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "user_id": 1,
+    "name": "Rahul Sharma",
+    "age": 29,
+    "gender": "male",
+    "address": "Mumbai, India",
+    "phone": "9876543210",
+    "created_at": "2026-10-22T12:50:00.000Z",
+    "updated_at": "2026-10-22T12:55:00.000Z"
+  }
+}
+```
+
+```bash
+curl -X PUT http://localhost:5001/api/patients/1/ \
+  -H "Authorization: Bearer <your_jwt_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Rahul Sharma","age":29,"gender":"male","address":"Mumbai, India","phone":"9876543210"}'
+```
+
+---
+
+#### E. Delete a Patient by ID
+- **Method**: `DELETE /api/patients/:id/` (or `DELETE /api/patients/:id`)
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: `204 No Content` (empty body) on success, or `404 Not Found` (if nonexistent or owned by another user)
+
+```bash
+curl -X DELETE http://localhost:5001/api/patients/1/ \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+---
+
+### 9. Standard Error Contract
 All unknown routes and exceptions return a consistent JSON payload without internal database details or stack traces in production:
 ```json
 {
