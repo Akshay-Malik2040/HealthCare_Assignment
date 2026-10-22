@@ -13,7 +13,10 @@
     "docker:logs": "docker compose logs -f postgres",
     "docker:stop": "docker compose stop",
     "migrate:up": "npm run migrate:up --prefix healthcare-backend",
-    "migrate:down": "npm run migrate:down --prefix healthcare-backend"
+    "migrate:down": "npm run migrate:down --prefix healthcare-backend",
+    "frontend:dev": "npm run dev --prefix frontend",
+    "frontend:build": "npm run build --prefix frontend",
+    "frontend:preview": "npm run preview --prefix frontend"
   },
   "keywords": [],
   "author": "",

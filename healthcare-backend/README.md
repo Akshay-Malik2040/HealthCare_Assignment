@@ -972,7 +972,30 @@ curl -X DELETE http://localhost:5001/api/mappings/1/ \
 
 ---
 
-### 11. Standard Error Contract
+### 11. Postman Collection
+
+A complete, syntactically validated Postman collection v2.1.0 is included in the repository at:
+- [`docs/Healthcare-Backend.postman_collection.json`](file:///c:/Akshay/Assignments/WhatByte_Assignment/healthcare-backend/docs/Healthcare-Backend.postman_collection.json) (and root [`docs/Healthcare-Backend.postman_collection.json`](file:///c:/Akshay/Assignments/WhatByte_Assignment/docs/Healthcare-Backend.postman_collection.json))
+
+#### Features:
+- **Configurable `baseUrl`**: Defaults to `http://localhost:5001`.
+- **Automatic Token Capture**: The **Login User** request includes a Postman test script that automatically extracts the signed JWT from `data.token` and populates the `{{token}}` collection variable.
+- **Dynamic ID Propagation**: Tests on patient and doctor creation automatically save `{{patientId}}`, `{{doctorId}}`, and `{{mappingId}}` for subsequent requests.
+- **Organized Folders**: Grouped into `1. System Health`, `2. Authentication`, `3. Patients`, `4. Doctors`, and `5. Patient-Doctor Mappings`.
+- **Bearer Token Auth**: All protected endpoints inherit or reference `Bearer {{token}}`.
+
+#### Recommended Runner Order:
+1. `System Health > Database Readiness Health Check`
+2. `Authentication > Register User`
+3. `Authentication > Login User (Captures JWT Token)`
+4. `Patients > Create Patient` -> `List Patients` -> `Get Patient by ID` -> `Update Patient`
+5. `Doctors > Create Doctor` -> `List All Doctors` -> `Get Doctor by ID` -> `Update Doctor`
+6. `Patient-Doctor Mappings > Create Mapping` -> `List Mappings` -> `Get Doctors Assigned to a Patient` -> `Delete Mapping`
+7. Cleanup: `Patients > Delete Patient`, `Doctors > Delete Doctor`
+
+---
+
+### 12. Standard Error Contract
 All unknown routes and exceptions return a consistent JSON payload without internal database details or stack traces in production:
 ```json
 {
@@ -987,7 +1010,7 @@ All unknown routes and exceptions return a consistent JSON payload without inter
 
 ---
 
-## 12. Common Setup Failures and Troubleshooting
+## 13. Common Setup Failures and Troubleshooting
 
 | Issue | Cause | Solution |
 | :--- | :--- | :--- |
@@ -997,3 +1020,22 @@ All unknown routes and exceptions return a consistent JSON payload without inter
 | `EADDRINUSE: address already in use 0.0.0.0:5000` | Port 5000 is occupied by another local application. | Change `PORT=5001` in your `.env` file. |
 | `self-signed certificate in certificate chain` (on cloud providers) | Managed PostgreSQL uses a self-signed TLS certificate. | Set `DATABASE_SSL_REJECT_UNAUTHORIZED=false` in `.env` for that specific provider. |
 | `SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string` | Password in `.env` is empty or undefined. | Set `DB_PASSWORD` in `.env` and verify `DATABASE_URL` matches. |
+
+---
+
+## 14. Phase 6 Security & Quality Verification Summary
+
+| Verification Category | Status | Details |
+| :--- | :---: | :--- |
+| **All 15+ Endpoints Implemented** | Pass | Auth (2), Patients (5), Doctors (5), Mappings (4), Health (2) |
+| **Bcrypt Password Hashing** | Pass | Salt rounds = 10; plaintext passwords never stored or logged |
+| **JWT Expiration & Verification** | Pass | Explicit HS256, expiration enforced, 401 on expired/tampered tokens |
+| **Multi-Tenant Patient Ownership** | Pass | Patients filtered and mutated strictly by authenticated `user_id` |
+| **Shared Doctor Model** | Pass | Doctors catalog accessible across all authenticated users |
+| **Relational Integrity & Cascades** | Pass | Cascade deletions delete mapping rows without deleting patient/doctor |
+| **Database Migration Integrity** | Pass | Tested clean up & down across fresh temporary database |
+| **Parameterized SQL** | Pass | Parameterized queries prevent SQL injection across all modules |
+| **Centralized Error Handling** | Pass | Unified `{ success: false, error: { code, message, details } }` format |
+| **Automated Test Suite** | Pass | 129 out of 129 automated tests pass with 0 failures |
+| **Postman Collection** | Pass | Valid v2.1.0 JSON with token capture and variables |
+

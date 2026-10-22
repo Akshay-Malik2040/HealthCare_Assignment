@@ -110,6 +110,42 @@ curl http://localhost:5001/api/health
 
 ---
 
+## Postman Collection
+
+A complete, importable Postman Collection v2.1.0 is included at:
+[`docs/Healthcare-Backend.postman_collection.json`](file:///c:/Akshay/Assignments/WhatByte_Assignment/docs/Healthcare-Backend.postman_collection.json)
+
+- Configurable `baseUrl` variable (`http://localhost:5001` default)
+- Auto-extracts JWT token from `POST /api/auth/login` to `{{token}}` variable
+- Covers all 15 required endpoints across Authentication, Patients, Doctors, and Mappings
+
+---
+
+## All 15 Required API Endpoints
+
+| Category | Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- | :---: |
+| **Auth** | `POST` | `/api/auth/register/` | Register new user account | No |
+| **Auth** | `POST` | `/api/auth/login/` | Authenticate & retrieve JWT | No |
+| **Patients** | `POST` | `/api/patients/` | Create owned patient | Yes (JWT) |
+| **Patients** | `GET` | `/api/patients/` | List caller's patients | Yes (JWT) |
+| **Patients** | `GET` | `/api/patients/:id/` | Retrieve owned patient | Yes (JWT) |
+| **Patients** | `PUT` | `/api/patients/:id/` | Update owned patient | Yes (JWT) |
+| **Patients** | `DELETE` | `/api/patients/:id/` | Delete owned patient | Yes (JWT) |
+| **Doctors** | `POST` | `/api/doctors/` | Create doctor in shared catalog | Yes (JWT) |
+| **Doctors** | `GET` | `/api/doctors/` | List all doctors | Yes (JWT) |
+| **Doctors** | `GET` | `/api/doctors/:id/` | Retrieve doctor by ID | Yes (JWT) |
+| **Doctors** | `PUT` | `/api/doctors/:id/` | Update doctor by ID | Yes (JWT) |
+| **Doctors** | `DELETE` | `/api/doctors/:id/` | Delete doctor by ID | Yes (JWT) |
+| **Mappings** | `POST` | `/api/mappings/` | Assign doctor to owned patient | Yes (JWT) |
+| **Mappings** | `GET` | `/api/mappings/` | List mappings for caller's patients | Yes (JWT) |
+| **Mappings** | `GET` | `/api/mappings/:patient_id/` | Get doctors for specific patient | Yes (JWT) |
+| **Mappings** | `DELETE` | `/api/mappings/:id/` | Remove doctor assignment | Yes (JWT) |
+
+*(Trailing slashes are optionally supported on all routes)*
+
+---
+
 ## Cloud Deployment (Render & Vercel)
 For complete instructions on:
 - Setting up a managed PostgreSQL database on Render
@@ -119,3 +155,4 @@ For complete instructions on:
 - Migrating data from an existing local PostgreSQL installation with `pg_dump`
 
 See the detailed documentation in [`healthcare-backend/README.md`](file:///c:/Akshay/Assignments/WhatByte_Assignment/healthcare-backend/README.md).
+
