@@ -1,0 +1,21 @@
+{
+  "name": "whatbyte-assignment",
+  "version": "1.0.0",
+  "description": "Healthcare Management Backend Assignment",
+  "scripts": {
+    "start": "npm start --prefix healthcare-backend",
+    "dev": "npm run dev --prefix healthcare-backend",
+    "test": "npm test --prefix healthcare-backend",
+    "test:coverage": "npm run test:coverage --prefix healthcare-backend",
+    "db:check": "npm run db:check --prefix healthcare-backend",
+    "docker:up": "docker compose up -d",
+    "docker:status": "docker compose ps",
+    "docker:logs": "docker compose logs -f postgres",
+    "docker:stop": "docker compose stop",
+    "migrate:up": "npm run migrate:up --prefix healthcare-backend",
+    "migrate:down": "npm run migrate:down --prefix healthcare-backend"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

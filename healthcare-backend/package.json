@@ -1,0 +1,48 @@
+{
+  "name": "healthcare-backend",
+  "version": "1.0.0",
+  "description": "Healthcare Management REST API - Phase 1 Foundation",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "jest --runInBand",
+    "test:coverage": "jest --coverage",
+    "db:check": "node -r ./src/config/env -e \"require('./src/config/db').checkDbConnection().then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(r.ok ? 0 : 1); });\"",
+    "docker:up": "docker compose up -d",
+    "docker:status": "docker compose ps",
+    "docker:logs": "docker compose logs -f postgres",
+    "docker:stop": "docker compose stop",
+    "migrate:up": "node -r ./src/config/env ./node_modules/node-pg-migrate/bin/node-pg-migrate.js -m migrations up",
+    "migrate:down": "node -r ./src/config/env ./node_modules/node-pg-migrate/bin/node-pg-migrate.js -m migrations down",
+    "migrate:create": "node-pg-migrate -m migrations create"
+  },
+  "keywords": [
+    "healthcare",
+    "express",
+    "postgresql",
+    "rest-api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "node-pg-migrate": "^7.9.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "verbose": true
+  }
+}
