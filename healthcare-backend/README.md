@@ -319,7 +319,95 @@ CORS_ORIGIN=https://your-frontend-domain.com
 - **Method**: `GET /api/health?check=liveness`
 - **Response**: `200 OK` (checks node application responsiveness without database roundtrip)
 
-### 5. Standard Error Contract
+### 5. User Registration (Phase 2)
+- **Method**: `POST /api/auth/register` (also supports `/api/auth/register/`)
+- **Headers**: `Content-Type: application/json`
+- **Request Body**:
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane.doe@example.com",
+  "password": "StrongPassword123!"
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Jane Doe",
+    "email": "jane.doe@example.com",
+    "createdAt": "2026-10-22T12:35:00.000Z"
+  }
+}
+```
+- **Duplicate Email**: Returns `409 Conflict` (`EMAIL_EXISTS`).
+- **Validation Failure**: Returns `400 Bad Request` (`VALIDATION_ERROR`).
+
+#### Example curl for Registration:
+```bash
+curl -X POST http://localhost:5001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Jane Doe","email":"jane.doe@example.com","password":"StrongPassword123!"}'
+```
+
+### 6. User Login (Phase 2)
+- **Method**: `POST /api/auth/login` (also supports `/api/auth/login/`)
+- **Headers**: `Content-Type: application/json`
+- **Request Body**:
+```json
+{
+  "email": "jane.doe@example.com",
+  "password": "StrongPassword123!"
+}
+```
+- **Response**: `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": 1,
+      "name": "Jane Doe",
+      "email": "jane.doe@example.com"
+    }
+  }
+}
+```
+- **Invalid Credentials**: Returns `401 Unauthorized` (`INVALID_CREDENTIALS`, constant message prevents user enumeration).
+
+#### Example curl for Login:
+```bash
+curl -X POST http://localhost:5001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"jane.doe@example.com","password":"StrongPassword123!"}'
+```
+
+### 7. Token Verification & Middleware Usage (Phase 2)
+- **Method**: `GET /api/auth/me`
+- **Headers**: `Authorization: Bearer <your_jwt_token>`
+- **Response**: `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "1",
+      "email": "jane.doe@example.com"
+    }
+  }
+}
+```
+
+#### Example curl with JWT:
+```bash
+curl -X GET http://localhost:5001/api/auth/me \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+### 8. Standard Error Contract
 All unknown routes and exceptions return a consistent JSON payload without internal database details or stack traces in production:
 ```json
 {

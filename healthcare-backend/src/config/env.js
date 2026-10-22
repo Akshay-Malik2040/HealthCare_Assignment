@@ -66,6 +66,10 @@ const DB_MAX_CONNECTIONS = process.env.DB_MAX_CONNECTIONS ? parseInt(process.env
 const DB_IDLE_TIMEOUT_MS = process.env.DB_IDLE_TIMEOUT_MS ? parseInt(process.env.DB_IDLE_TIMEOUT_MS, 10) : 30000;
 const DB_CONNECTION_TIMEOUT_MS = process.env.DB_CONNECTION_TIMEOUT_MS ? parseInt(process.env.DB_CONNECTION_TIMEOUT_MS, 10) : 5000;
 
+// JWT configuration
+const JWT_SECRET = process.env.JWT_SECRET || (NODE_ENV === 'test' ? 'test_jwt_secret_must_be_at_least_32_characters_long_for_security' : undefined);
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
+
 /**
  * Validates the current environment variables.
  * @throws {Error} If required configurations are missing or invalid (except in 'test' mode).
@@ -78,6 +82,7 @@ function validateEnv(envOverride = {}) {
     DB_HOST: envOverride.DB_HOST !== undefined ? envOverride.DB_HOST : DB_HOST,
     DB_NAME: envOverride.DB_NAME !== undefined ? envOverride.DB_NAME : DB_NAME,
     DB_USER: envOverride.DB_USER !== undefined ? envOverride.DB_USER : DB_USER,
+    JWT_SECRET: envOverride.JWT_SECRET !== undefined ? envOverride.JWT_SECRET : JWT_SECRET,
   };
 
   const errors = [];
@@ -94,6 +99,17 @@ function validateEnv(envOverride = {}) {
     errors.push(
       'Missing PostgreSQL database configuration. Please set DATABASE_URL or discrete variables (DB_HOST, DB_NAME, DB_USER).'
     );
+  }
+
+  // Validate JWT Secret
+  if (currentEnv.NODE_ENV === 'production') {
+    if (!currentEnv.JWT_SECRET || currentEnv.JWT_SECRET.length < 32) {
+      errors.push('JWT_SECRET must be at least 32 characters long in production.');
+    }
+  } else if (currentEnv.NODE_ENV !== 'test') {
+    if (!currentEnv.JWT_SECRET) {
+      errors.push('JWT_SECRET is missing. Set a cryptographically secure secret (e.g. openssl rand -base64 32).');
+    }
   }
 
   if (errors.length > 0) {
@@ -124,5 +140,7 @@ module.exports = {
   DB_CONNECTION_TIMEOUT_MS,
   DATABASE_SSL,
   DATABASE_SSL_REJECT_UNAUTHORIZED,
+  JWT_SECRET,
+  JWT_EXPIRES_IN,
   validateEnv,
 };

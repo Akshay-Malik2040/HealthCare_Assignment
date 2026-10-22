@@ -10,19 +10,28 @@ This repository contains the backend implementation for the Healthcare Managemen
 healthcare-backend/
   src/
     config/
-      env.js             # Environment variable parsing, validation & SSL support
+      env.js             # Environment variable parsing, validation, JWT & SSL support
       db.js              # pg.Pool singleton, connection verification & query wrapper
     middleware/
+      authenticate.js    # JWT Bearer token authentication middleware (HS256)
       errorHandler.js    # Centralized JSON error handling
       notFound.js        # Standardized 404 JSON response
+    modules/
+      auth/
+        auth.routes.js     # Register, Login, and Me endpoints
+        auth.controller.js # HTTP request/response handler
+        auth.service.js    # Database queries, bcrypt hashing, JWT issuance
+        auth.validation.js # Zod schemas for input validation
     routes/
-      index.js           # API discovery and health check routes
+      index.js           # API discovery and route mounting
     app.js               # Express application initialization (Helmet, CORS)
     server.js            # Server startup, DB pre-flight check, 0.0.0.0 binding & graceful shutdown
   migrations/
     1700000000000_initial-schema-baseline.js  # Schema baseline migration
+    1700000001000_create-users-table.js       # Phase 2 users table migration
   tests/
-    health.test.js       # Jest & Supertest test suite
+    auth.test.js         # Jest & Supertest authentication test suite
+    health.test.js       # Jest & Supertest health check test suite
   .env.example           # Environment template with placeholder values
   docker-compose.yml     # Docker Compose for PostgreSQL 16 container
   package.json           # Scripts and dependencies

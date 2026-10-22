@@ -29,6 +29,34 @@ module.exports = function errorHandler(err, req, res, next) {
     });
   }
 
+  // Handle Zod schema validation errors
+  if (err.name === 'ZodError') {
+    const issues = err.issues || (Array.isArray(err.errors) ? err.errors : []);
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid request payload',
+        details: issues.map((e) => ({
+          field: e.path.join('.'),
+          message: e.message,
+        })),
+      },
+    });
+  }
+
+  // Handle PostgreSQL unique constraint violation (duplicate key)
+  if (err.code === '23505') {
+    return res.status(409).json({
+      success: false,
+      error: {
+        code: 'EMAIL_EXISTS',
+        message: 'Email is already registered',
+        details: null,
+      },
+    });
+  }
+
   const statusCode = err.statusCode || err.status || 500;
   const isProduction = (process.env.NODE_ENV || env.NODE_ENV) === 'production';
 

@@ -1,7 +1,11 @@
 const express = require('express');
 const db = require('../config/db');
+const authRoutes = require('../modules/auth/auth.routes');
 
 const router = express.Router();
+
+// Mount authentication module routes
+router.use('/auth', authRoutes);
 
 /**
  * GET /api
@@ -13,10 +17,12 @@ router.get('/', (req, res) => {
     data: {
       name: 'Healthcare Management Backend API',
       version: '1.0.0',
-      phase: 'Phase 1 - Project Foundation',
+      phase: 'Phase 2 - Authentication APIs',
       status: 'operational',
       endpoints: {
         health: '/api/health',
+        register: '/api/auth/register',
+        login: '/api/auth/login',
       },
     },
   });
