@@ -146,13 +146,31 @@ A complete, importable Postman Collection v2.1.0 is included at:
 
 ---
 
-## Cloud Deployment (Render & Vercel)
-For complete instructions on:
-- Setting up a managed PostgreSQL database on Render
-- Internal vs External connection strings
-- SSL configuration
-- Serverless deployment on Vercel
-- Migrating data from an existing local PostgreSQL installation with `pg_dump`
+## Frontend Application (React + Vite)
 
-See the detailed documentation in [`healthcare-backend/README.md`](file:///c:/Akshay/Assignments/WhatByte_Assignment/healthcare-backend/README.md).
+The frontend is located in the `frontend/` directory and connects to the backend REST API:
+
+- **Directory**: `frontend/`
+- **Stack**: React 18, Vite, Vanilla CSS, Native Fetch API
+- **State & Storage**: JWT persisted in `sessionStorage`
+- **Features**: Authentication, Patient CRUD, Doctor CRUD, Patient-Doctor Mappings
+
+### Running Frontend Locally:
+```bash
+# From repository root:
+npm run frontend:dev
+
+# Or directly in frontend/:
+cd frontend
+npm install
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+---
+
+## Production Cloud Deployment (Render, Vercel, Neon, Supabase)
+
+For step-by-step instructions on deploying the full stack (Database, Express Backend, and React Frontend):
+👉 **See the complete [DEPLOYMENT.md](DEPLOYMENT.md) guide.**
 
