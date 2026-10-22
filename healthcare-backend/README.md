@@ -24,16 +24,39 @@ healthcare-backend/
       env.js             # Environment variable parsing, validation, SSL & URL synchronization
       db.js              # pg.Pool singleton, connection verification, query wrapper & SSL handling
     middleware/
-      errorHandler.js    # Centralized JSON error handling & production stack hiding
+      authenticate.js    # Reusable JWT authentication middleware (HS256)
+      errorHandler.js    # Centralized JSON error handling & constraint conflict mapping
       notFound.js        # Standardized 404 JSON response for unknown routes
+    modules/
+      auth/
+        auth.routes.js     # Register, Login, Me routes
+        auth.controller.js # Auth HTTP handler
+        auth.service.js    # Auth SQL operations & bcrypt hashing
+        auth.validation.js # Auth Zod schemas
+      patients/
+        patient.routes.js     # Patient CRUD routes (multi-tenant)
+        patient.controller.js # Patient HTTP handler
+        patient.service.js    # Multi-tenant SQL queries (user-owned)
+        patient.validation.js # Patient Zod schemas
+      doctors/
+        doctor.routes.js      # Doctor CRUD routes (shared access model)
+        doctor.controller.js  # Doctor HTTP handler
+        doctor.service.js     # Doctor SQL operations & conflict handling
+        doctor.validation.js  # Doctor Zod schemas & ID validation
     routes/
-      index.js           # API root discovery and health check routes
+      index.js           # API root discovery and route mounting
     app.js               # Express application initialization, Helmet & CORS
     server.js            # Server startup, database pre-flight check, 0.0.0.0 host & graceful shutdown
   migrations/
     1700000000000_initial-schema-baseline.js  # Baseline schema versioning table
+    1700000001000_create-users-table.js       # Phase 2 users table migration
+    1700000002000_create-patients-table.js    # Phase 3 patients table migration
+    1700000003000_create-doctors-table.js     # Phase 4 doctors table migration
   tests/
-    health.test.js       # Jest & Supertest automated test suite
+    auth.test.js         # Phase 2 authentication integration test suite
+    health.test.js       # Phase 1 foundation & health check test suite
+    patient.test.js      # Phase 3 patient management integration test suite
+    doctor.test.js       # Phase 4 doctor management integration test suite
   .env.example           # Environment variable template with complete placeholders
   .gitignore             # Ignores .env, node_modules, coverage, logs
   docker-compose.yml     # PostgreSQL 16 container definition with persistent volume & healthcheck
@@ -577,7 +600,213 @@ curl -X DELETE http://localhost:5001/api/patients/1/ \
 
 ---
 
-### 9. Standard Error Contract
+### 9. Doctor Management APIs (Phase 4)
+
+All doctor endpoints require a valid JWT `Bearer <token>` in the `Authorization` header.
+
+#### Shared-Doctor Access Model
+Under the assignment's shared-doctor model:
+- Doctor records are **shared** across all authenticated users.
+- Unlike patients (which are strictly user-owned and isolated), any authenticated user can view, list, create, and update doctors.
+- There are no creator-based restrictions or role-based boundaries on doctor records.
+
+#### Doctor Schema & Validation Rules:
+- `id`: Auto-generated serial integer primary key. Client cannot override this.
+- `name`: Required string, trimmed, non-empty, 1-100 characters.
+- `specialization`: Required string, trimmed, non-empty, 1-100 characters (e.g. `Cardiology`, `Neurology`, `Pediatrics`).
+- `email`: Required valid email address, trimmed, normalized to lowercase, max 255 characters. Uniqueness is enforced both in application logic and by a PostgreSQL unique constraint with an index.
+- `phone`: Optional string, trimmed, max 30 characters. Kept as a string to preserve leading zeros and international formatting (e.g. `+91-9876543210`, `011-23456789`). Characters allowed: digits, spaces, hyphens, parentheses, and leading `+`.
+- `created_at` / `updated_at`: Timestamps with time zone, default `current_timestamp`. Managed by the database; client-supplied timestamps are stripped.
+
+#### Endpoints Overview
+
+| Method | Endpoint | Description | Status Codes |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/doctors/` | Create a new doctor | `201`, `400`, `401`, `409` |
+| `GET` | `/api/doctors/` | List all doctors (newest first) | `200`, `401` |
+| `GET` | `/api/doctors/:id/` | Retrieve doctor by ID | `200`, `400`, `401`, `404` |
+| `PUT` | `/api/doctors/:id/` | Update doctor (full replacement) | `200`, `400`, `401`, `404`, `409` |
+| `DELETE` | `/api/doctors/:id/` | Delete doctor (foreign key protected) | `204`, `400`, `401`, `404`, `409` |
+
+*(All routes support optional trailing slashes seamlessly, e.g. `/api/doctors` and `/api/doctors/`)*
+
+---
+
+#### A. Create Doctor
+- **Method**: `POST /api/doctors/` (or `POST /api/doctors`)
+- **Headers**:
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <token>`
+- **Request Body**:
+```json
+{
+  "name": "Dr. Neha Sharma",
+  "specialization": "Cardiology",
+  "email": "neha@example.com",
+  "phone": "9876543210"
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Dr. Neha Sharma",
+    "specialization": "Cardiology",
+    "email": "neha@example.com",
+    "phone": "9876543210",
+    "created_at": "2026-10-22T13:05:00.000Z",
+    "updated_at": "2026-10-22T13:05:00.000Z"
+  }
+}
+```
+- **Error Responses**:
+  - `400 Bad Request`: Validation failure (empty name, invalid email, malformed phone).
+  - `401 Unauthorized`: Missing or invalid JWT.
+  - `409 Conflict`: Email already registered (`code: "EMAIL_EXISTS"`).
+
+```bash
+curl -X POST http://localhost:5001/api/doctors/ \
+  -H "Authorization: Bearer <your_jwt_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Dr. Neha Sharma","specialization":"Cardiology","email":"neha@example.com","phone":"9876543210"}'
+```
+
+---
+
+#### B. List All Doctors
+- **Method**: `GET /api/doctors/` (or `GET /api/doctors`)
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: `200 OK` (ordered newest first)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 2,
+      "name": "Dr. Amit Verma",
+      "specialization": "Neurology",
+      "email": "amit@example.com",
+      "phone": "+91-9876543211",
+      "created_at": "2026-10-22T13:10:00.000Z",
+      "updated_at": "2026-10-22T13:10:00.000Z"
+    },
+    {
+      "id": 1,
+      "name": "Dr. Neha Sharma",
+      "specialization": "Cardiology",
+      "email": "neha@example.com",
+      "phone": "9876543210",
+      "created_at": "2026-10-22T13:05:00.000Z",
+      "updated_at": "2026-10-22T13:05:00.000Z"
+    }
+  ]
+}
+```
+
+```bash
+curl -X GET http://localhost:5001/api/doctors/ \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+---
+
+#### C. Retrieve One Doctor by ID
+- **Method**: `GET /api/doctors/:id/` (or `GET /api/doctors/:id`)
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Dr. Neha Sharma",
+    "specialization": "Cardiology",
+    "email": "neha@example.com",
+    "phone": "9876543210",
+    "created_at": "2026-10-22T13:05:00.000Z",
+    "updated_at": "2026-10-22T13:05:00.000Z"
+  }
+}
+```
+- **Error Responses**:
+  - `400 Bad Request`: Malformed or non-integer ID (`code: "VALIDATION_ERROR"`).
+  - `401 Unauthorized`: Missing or invalid JWT.
+  - `404 Not Found`: Doctor with requested ID does not exist (`code: "NOT_FOUND"`).
+
+```bash
+curl -X GET http://localhost:5001/api/doctors/1/ \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+---
+
+#### D. Update Doctor (Full Replacement PUT)
+- **Method**: `PUT /api/doctors/:id/` (or `PUT /api/doctors/:id`)
+- **Headers**:
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <token>`
+- **Request Body** (all required fields must be supplied):
+```json
+{
+  "name": "Dr. Neha Sharma",
+  "specialization": "Senior Cardiology Specialist",
+  "email": "neha.sharma@example.com",
+  "phone": "+91-9876543210"
+}
+```
+- **Response**: `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "Dr. Neha Sharma",
+    "specialization": "Senior Cardiology Specialist",
+    "email": "neha.sharma@example.com",
+    "phone": "+91-9876543210",
+    "created_at": "2026-10-22T13:05:00.000Z",
+    "updated_at": "2026-10-22T13:15:00.000Z"
+  }
+}
+```
+- **Error Responses**:
+  - `400 Bad Request`: Incomplete body, invalid email format, or malformed ID.
+  - `401 Unauthorized`: Missing or invalid JWT.
+  - `404 Not Found`: Doctor not found.
+  - `409 Conflict`: Target email already in use by another doctor (`code: "EMAIL_EXISTS"`).
+
+```bash
+curl -X PUT http://localhost:5001/api/doctors/1/ \
+  -H "Authorization: Bearer <your_jwt_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Dr. Neha Sharma","specialization":"Senior Cardiology Specialist","email":"neha.sharma@example.com","phone":"+91-9876543210"}'
+```
+
+---
+
+#### E. Delete Doctor
+- **Method**: `DELETE /api/doctors/:id/` (or `DELETE /api/doctors/:id`)
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: `204 No Content` (empty body) on success.
+- **Foreign Key Protection**:
+  - If patient-doctor assignments or foreign-key mappings reference the doctor, deletion is **prevented** (HTTP `409 Conflict`, code `DELETE_CONFLICT`).
+  - Assignments are not silently deleted.
+- **Error Responses**:
+  - `400 Bad Request`: Malformed ID.
+  - `401 Unauthorized`: Missing or invalid JWT.
+  - `404 Not Found`: Doctor not found.
+  - `409 Conflict`: Referenced by existing patient assignments (`code: "DELETE_CONFLICT"`).
+
+```bash
+curl -X DELETE http://localhost:5001/api/doctors/1/ \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+---
+
+### 10. Standard Error Contract
 All unknown routes and exceptions return a consistent JSON payload without internal database details or stack traces in production:
 ```json
 {
@@ -592,7 +821,7 @@ All unknown routes and exceptions return a consistent JSON payload without inter
 
 ---
 
-## 8. Common Setup Failures and Troubleshooting
+## 11. Common Setup Failures and Troubleshooting
 
 | Issue | Cause | Solution |
 | :--- | :--- | :--- |

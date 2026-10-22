@@ -27,6 +27,11 @@ healthcare-backend/
         patient.controller.js # Patient HTTP request/response handler
         patient.service.js    # Multi-tenant SQL queries with user ownership enforcement
         patient.validation.js # Zod schemas for body and ID validation
+      doctors/
+        doctor.routes.js      # Doctor CRUD routes with shared access model
+        doctor.controller.js  # Doctor HTTP request/response handler
+        doctor.service.js     # Doctor SQL operations & conflict handling
+        doctor.validation.js  # Doctor Zod schemas and positive ID validation
     routes/
       index.js           # API discovery and route mounting
     app.js               # Express application initialization (Helmet, CORS)
@@ -35,10 +40,12 @@ healthcare-backend/
     1700000000000_initial-schema-baseline.js  # Schema baseline migration
     1700000001000_create-users-table.js       # Phase 2 users table migration
     1700000002000_create-patients-table.js    # Phase 3 patients table migration
+    1700000003000_create-doctors-table.js     # Phase 4 doctors table migration
   tests/
     auth.test.js         # Jest & Supertest authentication test suite
     health.test.js       # Jest & Supertest health check test suite
     patient.test.js      # Jest & Supertest patient management test suite
+    doctor.test.js       # Jest & Supertest doctor management test suite
   .env.example           # Environment template with placeholder values
   docker-compose.yml     # Docker Compose for PostgreSQL 16 container
   package.json           # Scripts and dependencies

@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../config/db');
 const authRoutes = require('../modules/auth/auth.routes');
 const patientRoutes = require('../modules/patients/patient.routes');
+const doctorRoutes = require('../modules/doctors/doctor.routes');
 
 const router = express.Router();
 
@@ -10,6 +11,9 @@ router.use('/auth', authRoutes);
 
 // Mount patient management module routes
 router.use('/patients', patientRoutes);
+
+// Mount doctor management module routes
+router.use('/doctors', doctorRoutes);
 
 /**
  * GET /api
@@ -21,13 +25,14 @@ router.get('/', (req, res) => {
     data: {
       name: 'Healthcare Management Backend API',
       version: '1.0.0',
-      phase: 'Phase 3 - Patient Management APIs',
+      phase: 'Phase 4 - Doctor Management APIs',
       status: 'operational',
       endpoints: {
         health: '/api/health',
         register: '/api/auth/register',
         login: '/api/auth/login',
         patients: '/api/patients',
+        doctors: '/api/doctors',
       },
     },
   });

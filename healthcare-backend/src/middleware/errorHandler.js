@@ -57,6 +57,19 @@ module.exports = function errorHandler(err, req, res, next) {
     });
   }
 
+  // Handle PostgreSQL foreign key violation (conflict on delete or reference)
+  if (err.code === '23503') {
+    return res.status(409).json({
+      success: false,
+      error: {
+        code: 'DELETE_CONFLICT',
+        message: 'Cannot delete record: referenced by existing assignments or dependencies',
+        details: null,
+      },
+    });
+  }
+
+
   const statusCode = err.statusCode || err.status || 500;
   const isProduction = (process.env.NODE_ENV || env.NODE_ENV) === 'production';
 
