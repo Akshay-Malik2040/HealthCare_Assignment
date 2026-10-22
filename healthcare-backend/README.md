@@ -43,6 +43,11 @@ healthcare-backend/
         doctor.controller.js  # Doctor HTTP handler
         doctor.service.js     # Doctor SQL operations & conflict handling
         doctor.validation.js  # Doctor Zod schemas & ID validation
+      mappings/
+        mapping.routes.js     # Patient-Doctor mapping routes
+        mapping.controller.js # Mapping HTTP handler
+        mapping.service.js    # Mapping transactions & joined SQL queries
+        mapping.validation.js # Mapping Zod schemas & ID validation
     routes/
       index.js           # API root discovery and route mounting
     app.js               # Express application initialization, Helmet & CORS
@@ -52,11 +57,13 @@ healthcare-backend/
     1700000001000_create-users-table.js       # Phase 2 users table migration
     1700000002000_create-patients-table.js    # Phase 3 patients table migration
     1700000003000_create-doctors-table.js     # Phase 4 doctors table migration
+    1700000004000_create-patient-doctors-table.js # Phase 5 patient_doctors table migration
   tests/
     auth.test.js         # Phase 2 authentication integration test suite
     health.test.js       # Phase 1 foundation & health check test suite
     patient.test.js      # Phase 3 patient management integration test suite
     doctor.test.js       # Phase 4 doctor management integration test suite
+    mapping.test.js      # Phase 5 patient-doctor mapping integration test suite
   .env.example           # Environment variable template with complete placeholders
   .gitignore             # Ignores .env, node_modules, coverage, logs
   docker-compose.yml     # PostgreSQL 16 container definition with persistent volume & healthcheck
@@ -806,7 +813,166 @@ curl -X DELETE http://localhost:5001/api/doctors/1/ \
 
 ---
 
-### 10. Standard Error Contract
+### 10. Patient–Doctor Mapping APIs (Phase 5)
+
+All mapping endpoints require a valid JWT `Bearer <token>` in the `Authorization` header.
+
+#### Patient Ownership & Access Control Rules:
+- **Tenant Isolation**: A user can only create, list, view, and delete mappings for patients that they **own** (`user_id = req.user.id`).
+- **Doctor Catalog**: Doctors remain a shared resource; any valid doctor can be assigned to an owned patient.
+- **Privacy Protection**: Attempting to view or delete mappings for another user's patient returns `HTTP 404 Not Found` (never exposing whether other users' patient records exist).
+
+#### Database Schema & Referential Integrity (`patient_doctors`):
+- `id`: Auto-generated serial primary key.
+- `patient_id`: Foreign key referencing `patients(id)` with `ON DELETE CASCADE`.
+- `doctor_id`: Foreign key referencing `doctors(id)` with `ON DELETE CASCADE`.
+- `created_at`: Timestamp with time zone, default `current_timestamp`.
+- **Unique Constraint**: `CONSTRAINT "patient_doctors_uniq_patient_id_doctor_id" UNIQUE ("patient_id", "doctor_id")` enforces that a patient cannot be assigned to the same doctor more than once.
+- **Indexes**: Explicit indexes on `patient_id` and `doctor_id` accelerate join lookups and cascade operations.
+
+#### Deletion Semantics:
+- **Deleting a mapping** (`DELETE /api/mappings/:id`): Deletes **only** the relationship row in `patient_doctors`. The patient and doctor records remain untouched.
+- **Deleting a patient**: Cascades and deletes all mapping rows for that patient (`ON DELETE CASCADE`).
+- **Deleting a doctor**: Cascades and cleans up associated mapping records.
+
+#### Endpoints Overview
+
+| Method | Endpoint | Description | Status Codes |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/mappings/` | Assign doctor to patient | `201`, `400`, `401`, `404`, `409` |
+| `GET` | `/api/mappings/` | List mappings for caller's patients | `200`, `401` |
+| `GET` | `/api/mappings/:patient_id/` | Get doctors assigned to patient | `200`, `400`, `401`, `404` |
+| `DELETE` | `/api/mappings/:id/` | Remove doctor assignment | `204`, `400`, `401`, `404` |
+
+*(All routes support optional trailing slashes seamlessly, e.g. `/api/mappings` and `/api/mappings/`)*
+
+---
+
+#### A. Create a Mapping (Assign Doctor to Patient)
+- **Method**: `POST /api/mappings/` (or `POST /api/mappings`)
+- **Headers**:
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <token>`
+- **Request Body**:
+```json
+{
+  "patient_id": 1,
+  "doctor_id": 2
+}
+```
+- **Response**: `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "patient_id": 1,
+    "doctor_id": 2,
+    "created_at": "2026-10-22T13:20:00.000Z"
+  }
+}
+```
+- **Error Responses**:
+  - `400 Bad Request`: Missing or non-integer `patient_id` or `doctor_id`.
+  - `401 Unauthorized`: Missing or invalid JWT.
+  - `404 Not Found`: Patient does not exist, patient is not owned by the caller, or doctor does not exist.
+  - `409 Conflict`: Patient is already assigned to this doctor (`code: "DUPLICATE_MAPPING"`).
+
+```bash
+curl -X POST http://localhost:5001/api/mappings/ \
+  -H "Authorization: Bearer <your_jwt_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"patient_id":1,"doctor_id":2}'
+```
+
+---
+
+#### B. List Mappings for Authenticated User's Patients
+- **Method**: `GET /api/mappings/` (or `GET /api/mappings`)
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: `200 OK` (joined details; ordered newest first)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "patient_id": 1,
+      "doctor_id": 2,
+      "created_at": "2026-10-22T13:20:00.000Z",
+      "patient_name": "Rahul Sharma",
+      "patient_age": 28,
+      "patient_gender": "male",
+      "doctor_name": "Dr. Amit Verma",
+      "doctor_specialization": "Neurology",
+      "doctor_email": "amit@example.com",
+      "doctor_phone": "+91-9876543211"
+    }
+  ]
+}
+```
+- Returns an empty array `[]` if the caller's patients have no assignments.
+- Never exposes mappings belonging to other users' patients.
+
+```bash
+curl -X GET http://localhost:5001/api/mappings/ \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+---
+
+#### C. Get Doctors Assigned to a Specific Patient
+- **Method**: `GET /api/mappings/:patient_id/` (or `GET /api/mappings/:patient_id`)
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "mapping_id": 1,
+      "patient_id": 1,
+      "doctor_id": 2,
+      "assigned_at": "2026-10-22T13:20:00.000Z",
+      "doctor_name": "Dr. Amit Verma",
+      "specialization": "Neurology",
+      "email": "amit@example.com",
+      "phone": "+91-9876543211"
+    }
+  ]
+}
+```
+- Returns `200 OK` with `[]` if the owned patient currently has no doctor assignments.
+- **Error Responses**:
+  - `400 Bad Request`: Malformed `patient_id`.
+  - `401 Unauthorized`: Missing or invalid JWT.
+  - `404 Not Found`: Patient does not exist or belongs to another user.
+
+```bash
+curl -X GET http://localhost:5001/api/mappings/1/ \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+---
+
+#### D. Delete a Mapping
+- **Method**: `DELETE /api/mappings/:id/` (or `DELETE /api/mappings/:id`)
+- **Headers**: `Authorization: Bearer <token>`
+- **Response**: `204 No Content` (empty body) on success.
+- **Safety**: Ownership is verified directly in SQL using `DELETE ... USING patients`; only deletes the junction row if the mapped patient is owned by the caller.
+- **Error Responses**:
+  - `400 Bad Request`: Malformed mapping ID.
+  - `401 Unauthorized`: Missing or invalid JWT.
+  - `404 Not Found`: Mapping does not exist or is associated with another user's patient.
+
+```bash
+curl -X DELETE http://localhost:5001/api/mappings/1/ \
+  -H "Authorization: Bearer <your_jwt_token>"
+```
+
+---
+
+### 11. Standard Error Contract
 All unknown routes and exceptions return a consistent JSON payload without internal database details or stack traces in production:
 ```json
 {
@@ -821,7 +987,7 @@ All unknown routes and exceptions return a consistent JSON payload without inter
 
 ---
 
-## 11. Common Setup Failures and Troubleshooting
+## 12. Common Setup Failures and Troubleshooting
 
 | Issue | Cause | Solution |
 | :--- | :--- | :--- |

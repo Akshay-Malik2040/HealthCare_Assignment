@@ -47,11 +47,17 @@ module.exports = function errorHandler(err, req, res, next) {
 
   // Handle PostgreSQL unique constraint violation (duplicate key)
   if (err.code === '23505') {
+    const isMappingDuplicate =
+      (err.constraint && err.constraint.includes('patient_doctors')) ||
+      (err.detail && err.detail.includes('patient_doctors'));
+
     return res.status(409).json({
       success: false,
       error: {
-        code: 'EMAIL_EXISTS',
-        message: 'Email is already registered',
+        code: isMappingDuplicate ? 'DUPLICATE_MAPPING' : 'EMAIL_EXISTS',
+        message: isMappingDuplicate
+          ? 'Patient is already assigned to this doctor'
+          : 'Email is already registered',
         details: null,
       },
     });
